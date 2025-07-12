@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "description": "WHO standard treatment protocols for child malnutrition",
+  "protocols": {
+    "Severe Acute Malnutrition (SAM)": {
+      "with_edema": {
+        "treatment": "Inpatient therapeutic care",
+        "details": "Start with stabilization phase 1 using F75 (100 kcal/kg/day) and proceed with transition (130 kcal/kg/day) and/or phase 2 (200kcal/kg/day) using either F100 RUTF as inpatient/child's condition and appetite improve",
+        "follow_up": "Monitor closely until stabilized",
+        "priority": "critical",
+        "duration_weeks": "2-4",
+        "medications": [
+          "F75 formula",
+          "F100 formula",
+          "RUTF",
+          "Antibiotics as needed"
+        ],
+        "monitoring": [
+          "Daily weight",
+          "Vital signs",
+          "Appetite assessment",
+          "Edema monitoring"
+        ]
+      },
+      "without_edema": {
+        "treatment": "Outpatient therapeutic care",
+        "details": "Provide 200 kcal/kg/day using RUTF, 5 days of antibiotics, routine health and nutrition care (Vitamin A, measles immunization, deworming, routine growth monitoring, etc.)",
+        "follow_up": "Follow-up every 1-2 weeks until edema resolves, clinically well, and WHZ score is normal",
+        "priority": "high",
+        "duration_weeks": "6-8",
+        "medications": [
+          "RUTF (Ready-to-Use Therapeutic Food)",
+          "Antibiotics (5 days)",
+          "Vitamin A",
+          "Deworming medication"
+        ],
+        "monitoring": [
+          "Weekly weight",
+          "Appetite assessment",
+          "Clinical status",
+          "Growth monitoring"
+        ]
+      }
+    },
+    "Moderate Acute Malnutrition (MAM)": {
+      "standard": {
+        "treatment": "Targeted supplementary feeding program",
+        "details": "Provide 75 kcal/kg/day routine health and nutrition care (Vit A and immunization counselling, deworming, routine growth monitoring, etc.)",
+        "follow_up": "Follow up every 2 weeks until WHZ score returns to normal",
+        "priority": "medium",
+        "duration_weeks": "8-12",
+        "medications": [
+          "Supplementary food (75 kcal/kg/day)",
+          "Vitamin A",
+          "Iron supplements",
+          "Deworming medication"
+        ],
+        "monitoring": [
+          "Bi-weekly weight",
+          "Growth monitoring",
+          "Appetite assessment",
+          "Family counseling"
+        ]
+      }
+    },
+    "Normal": {
+      "standard": {
+        "treatment": "Routine health check and nutrition care",
+        "details": "Vit A and nutrition counselling, immunization, deworming, routine growth monitoring, micronutrient supplementation (Vit A, iron, zinc, etc.) with close monitoring to high risk children",
+        "follow_up": "Regular monitoring as per standard schedule",
+        "priority": "low",
+        "duration_weeks": "ongoing",
+        "medications": [
+          "Vitamin A (as per schedule)",
+          "Iron supplements (if needed)",
+          "Zinc supplements (if needed)",
+          "Deworming (as per schedule)"
+        ],
+        "monitoring": [
+          "Monthly growth monitoring",
+          "Vaccination status",
+          "Nutrition counseling",
+          "Family education"
+        ]
+      }
+    }
+  },
+  "risk_factors": {
+    "high_priority_conditions": [
+      "edema",
+      "tuberculosis",
+      "malaria",
+      "twins",
+      "age_months < 6"
+    ],
+    "social_risk_factors": [
+      "4ps_beneficiary",
+      "large_household_size",
+      "low_adult_to_child_ratio"
+    ]
+  },
+  "emergency_criteria": {
+    "immediate_referral": [
+      "whz_score < -4",
+      "edema with fever",
+      "inability to feed",
+      "severe dehydration"
+    ]
+  }
+}

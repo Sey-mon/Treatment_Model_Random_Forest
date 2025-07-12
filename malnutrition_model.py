@@ -1,6 +1,7 @@
 """
 Child Malnutrition Assessment Model using Random Forest
 Based on WHO guidelines for children aged 0-5 years
+Now with flexible treatment protocol system
 """
 
 import pandas as pd
@@ -14,6 +15,7 @@ import seaborn as sns
 from scipy import stats
 import joblib
 import warnings
+from treatment_protocol_manager import TreatmentProtocolManager
 warnings.filterwarnings('ignore')
 
 class WHO_ZScoreCalculator:
@@ -104,9 +106,10 @@ class WHO_ZScoreCalculator:
 class MalnutritionRandomForestModel:
     """
     Random Forest model for predicting malnutrition status in children
+    Now includes flexible treatment protocol system
     """
     
-    def __init__(self):
+    def __init__(self, protocol_name='who_standard'):
         self.model = RandomForestClassifier(
             n_estimators=100,
             random_state=42,
@@ -116,8 +119,16 @@ class MalnutritionRandomForestModel:
         )
         self.label_encoders = {}
         self.scaler = StandardScaler()
-        self.feature_columns = []
         self.who_calculator = WHO_ZScoreCalculator()
+        self.is_trained = False
+        
+        # Initialize flexible treatment protocol system
+        self.protocol_manager = TreatmentProtocolManager()
+        self.protocol_manager.set_active_protocol(protocol_name)
+        
+        print(f"Initialized with protocol: {protocol_name}")
+        print(f"Available protocols: {self.protocol_manager.get_available_protocols()}")
+        self.feature_columns = []
         
     def preprocess_data(self, df):
         """
@@ -311,39 +322,39 @@ class MalnutritionRandomForestModel:
         
         return pd.DataFrame(results)
 
-    def get_treatment_recommendation(self, status, patient_data):
+    def get_treatment_recommendation(self, status, patient_data, protocol_name=None):
         """
-        Get treatment recommendation based on the flowchart
+        Get treatment recommendation using flexible protocol system
+        
+        Args:
+            status: Malnutrition status
+            patient_data: Patient data dictionary
+            protocol_name: Optional protocol to use (uses active if None)
+        
+        Returns:
+            Treatment recommendation dictionary
         """
-        whz = patient_data['whz_score']
+        return self.protocol_manager.get_treatment_recommendation(status, patient_data, protocol_name)
+    
+    def set_treatment_protocol(self, protocol_name):
+        """
+        Change the active treatment protocol
         
-        if status == "Severe Acute Malnutrition (SAM)":
-            if patient_data.get('edema', False):
-                return {
-                    'treatment': 'Inpatient therapeutic care',
-                    'details': 'Start with stabilization phase 1 using F75 (100 kcal/kg/day) and proceed with transition (130 kcal/kg/day) and/or phase 2 (200kcal/kg/day) using either F100 RUTF as inpatient/child\'s condition and appetite improve',
-                    'follow_up': 'Monitor closely until stabilized'
-                }
-            else:
-                return {
-                    'treatment': 'Outpatient therapeutic care',
-                    'details': 'Provide 200 kcal/kg/day using RUTF, 5 days of antibiotics, routine health and nutrition care (Vitamin A, measles immunization, deworming, routine growth monitoring, etc.)',
-                    'follow_up': 'Follow-up every 1-2 weeks until edema resolves, clinically well, and WHZ score is normal'
-                }
+        Args:
+            protocol_name: Name of the protocol to activate
         
-        elif status == "Moderate Acute Malnutrition (MAM)":
-            return {
-                'treatment': 'Targeted supplementary feeding program',
-                'details': 'Provide 75 kcal/kg/day routine health and nutrition care (Vit A and immunization counselling, deworming, routine growth monitoring, etc.)',
-                'follow_up': 'Follow up every 2 weeks until WHZ score returns to normal'
-            }
-        
-        else:  # Normal
-            return {
-                'treatment': 'Routine health check and nutrition care',
-                'details': 'Vit A and nutrition counselling, immunization, deworming, routine growth monitoring, micronutrient supplementation (Vit A, iron, zinc, etc.) with close monitoring to high risk children',
-                'follow_up': 'Regular monitoring as per standard schedule'
-            }
+        Returns:
+            bool: True if successful
+        """
+        return self.protocol_manager.set_active_protocol(protocol_name)
+    
+    def get_available_protocols(self):
+        """Get list of available treatment protocols"""
+        return self.protocol_manager.get_available_protocols()
+    
+    def get_protocol_info(self, protocol_name=None):
+        """Get information about a protocol"""
+        return self.protocol_manager.get_protocol_info(protocol_name)
     
     def plot_feature_importance(self):
         """

@@ -46,9 +46,13 @@ Thumbs.db
 .streamlit/
 
 # Data files (if sensitive)
-*.csv
-*.xlsx
-*.xls
+# *.csv
+# *.xlsx
+# *.xls
+
+# Keep treatment protocol files
+!treatment_protocols/
+!treatment_protocols/*.json
 
 # Logs
 *.log

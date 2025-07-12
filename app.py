@@ -18,6 +18,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from malnutrition_model import MalnutritionRandomForestModel, generate_sample_data
 from streamlit_fixes import fix_dataframe_for_streamlit, create_display_dataframe, safe_numeric_format, prepare_batch_results
 from data_manager import DataManager
+from treatment_protocol_manager import TreatmentProtocolManager
 
 # Configure Streamlit page
 st.set_page_config(
@@ -63,9 +64,9 @@ def load_sample_data():
     return generate_sample_data(500)
 
 @st.cache_resource
-def load_trained_model():
-    """Load or train the model"""
-    model = MalnutritionRandomForestModel()
+def load_trained_model(protocol_name='who_standard'):
+    """Load or train the model with specified protocol"""
+    model = MalnutritionRandomForestModel(protocol_name=protocol_name)
     
     # Check if saved model exists
     if os.path.exists('malnutrition_model.pkl'):
@@ -86,26 +87,55 @@ def main():
     st.markdown('<h1 class="main-header">🏥 Child Malnutrition Assessment System</h1>', unsafe_allow_html=True)
     st.markdown("**Random Forest Model for Children Aged 0-5 Years**")
     
-    # Load model
+    # Protocol selection in sidebar
+    st.sidebar.title("🔧 System Configuration")
+    
+    # Initialize protocol manager for selection
+    protocol_manager = TreatmentProtocolManager()
+    available_protocols = protocol_manager.get_available_protocols()
+    
+    if available_protocols:
+        selected_protocol = st.sidebar.selectbox(
+            "Treatment Protocol:",
+            available_protocols,
+            index=0 if 'who_standard' not in available_protocols else available_protocols.index('who_standard'),
+            help="Select the treatment protocol to use for recommendations"
+        )
+        
+        # Show protocol info
+        protocol_info = protocol_manager.get_protocol_info(selected_protocol)
+        if protocol_info:
+            st.sidebar.info(f"**{protocol_info['description']}**\nVersion: {protocol_info['version']}")
+    else:
+        selected_protocol = 'default'
+        st.sidebar.warning("No protocols found. Using default protocol.")
+    
+    # Load model with selected protocol
     with st.spinner("Loading model..."):
-        model, model_loaded = load_trained_model()
+        model, model_loaded = load_trained_model(selected_protocol)
     
     if model_loaded:
         st.success("✅ Pre-trained model loaded successfully!")
     else:
         st.info("🔄 New model trained successfully!")
     
-    # Sidebar navigation
-    st.sidebar.title("Navigation")
+    # Update model protocol if needed
+    if hasattr(model, 'set_treatment_protocol'):
+        model.set_treatment_protocol(selected_protocol)
+    
+    # Navigation
+    st.sidebar.title("📋 Navigation")
     page = st.sidebar.selectbox(
         "Choose a page:",
-        ["Single Patient Assessment", "Batch Assessment", "Data Analysis", "Model Information"]
+        ["Single Patient Assessment", "Batch Assessment", "Protocol Management", "Data Analysis", "Model Information"]
     )
     
     if page == "Single Patient Assessment":
         single_patient_assessment(model)
     elif page == "Batch Assessment":
         batch_assessment(model)
+    elif page == "Protocol Management":
+        protocol_management_page(model)
     elif page == "Data Analysis":
         data_analysis_page()
     elif page == "Model Information":
@@ -517,5 +547,183 @@ def model_information_page(model):
     - **Normal**: Routine health check and nutrition care
     """)
 
-if __name__ == "__main__":
-    main()
+def protocol_management_page(model):
+    """Protocol Management and Configuration Page"""
+    st.header("🔧 Treatment Protocol Management")
+    
+    # Get protocol manager from model
+    if hasattr(model, 'protocol_manager'):
+        protocol_manager = model.protocol_manager
+    else:
+        protocol_manager = TreatmentProtocolManager()
+    
+    # Current protocol info
+    st.subheader("📋 Current Protocol Information")
+    current_protocol = protocol_manager.active_protocol
+    protocol_info = protocol_manager.get_protocol_info()
+    
+    if protocol_info:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Active Protocol", current_protocol)
+        with col2:
+            st.metric("Version", protocol_info['version'])
+        with col3:
+            st.metric("Statuses", len(protocol_info['statuses']))
+        
+        st.info(f"**Description:** {protocol_info['description']}")
+    
+    # Available protocols
+    st.subheader("📚 Available Protocols")
+    available_protocols = protocol_manager.get_available_protocols()
+    
+    for protocol_name in available_protocols:
+        with st.expander(f"📖 {protocol_name.replace('_', ' ').title()}"):
+            info = protocol_manager.get_protocol_info(protocol_name)
+            if info:
+                st.write(f"**Version:** {info['version']}")
+                st.write(f"**Description:** {info['description']}")
+                st.write(f"**Supported Status Categories:** {', '.join(info['statuses'])}")
+                
+                # Switch protocol button
+                if protocol_name != current_protocol:
+                    if st.button(f"Switch to {protocol_name}", key=f"switch_{protocol_name}"):
+                        if model.set_treatment_protocol(protocol_name):
+                            st.success(f"✅ Switched to {protocol_name} protocol")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ Failed to switch to {protocol_name}")
+    
+    # Protocol details viewer
+    st.subheader("🔍 Protocol Details Viewer")
+    selected_protocol = st.selectbox(
+        "Select protocol to view details:",
+        available_protocols,
+        index=available_protocols.index(current_protocol) if current_protocol in available_protocols else 0
+    )
+    
+    if selected_protocol:
+        # Get full protocol data
+        try:
+            protocol_file = protocol_manager.protocol_directory / f"{selected_protocol}.json"
+            if protocol_file.exists():
+                import json
+                with open(protocol_file, 'r', encoding='utf-8') as f:
+                    protocol_data = json.load(f)
+                
+                # Show protocol structure
+                st.json(protocol_data)
+                
+                # Download button
+                st.download_button(
+                    label=f"📥 Download {selected_protocol} Protocol",
+                    data=json.dumps(protocol_data, indent=2),
+                    file_name=f"{selected_protocol}_protocol.json",
+                    mime="application/json"
+                )
+        except Exception as e:
+            st.error(f"Error loading protocol details: {e}")
+    
+    # Test protocol recommendations
+    st.subheader("🧪 Test Protocol Recommendations")
+    test_col1, test_col2 = st.columns(2)
+    
+    with test_col1:
+        test_status = st.selectbox(
+            "Malnutrition Status:",
+            ["Severe Acute Malnutrition (SAM)", "Moderate Acute Malnutrition (MAM)", "Normal"]
+        )
+        
+        test_edema = st.checkbox("Has Edema", value=False)
+        test_whz = st.slider("WHZ Score", min_value=-5.0, max_value=3.0, value=-2.5, step=0.1)
+    
+    with test_col2:
+        test_age = st.number_input("Age (months)", min_value=0, max_value=60, value=24)
+        test_protocol = st.selectbox(
+            "Test with Protocol:",
+            available_protocols,
+            index=available_protocols.index(current_protocol) if current_protocol in available_protocols else 0
+        )
+    
+    if st.button("🔍 Get Test Recommendation"):
+        test_patient_data = {
+            'edema': test_edema,
+            'whz_score': test_whz,
+            'age_months': test_age
+        }
+        
+        try:
+            recommendation = protocol_manager.get_treatment_recommendation(
+                test_status, test_patient_data, test_protocol
+            )
+            
+            st.success("📋 **Treatment Recommendation:**")
+            
+            # Display recommendation in formatted way
+            rec_col1, rec_col2 = st.columns(2)
+            
+            with rec_col1:
+                st.write(f"**Treatment:** {recommendation.get('treatment', 'N/A')}")
+                st.write(f"**Priority:** {recommendation.get('priority', 'N/A')}")
+                st.write(f"**Duration:** {recommendation.get('duration_weeks', 'N/A')} weeks")
+                st.write(f"**Protocol Used:** {recommendation.get('protocol_used', 'N/A')}")
+            
+            with rec_col2:
+                st.write(f"**Follow-up:** {recommendation.get('follow_up', 'N/A')}")
+                if 'medications' in recommendation:
+                    st.write("**Medications:**")
+                    for med in recommendation['medications']:
+                        st.write(f"• {med}")
+            
+            st.write(f"**Details:** {recommendation.get('details', 'N/A')}")
+            
+            # Show risk factors if any
+            if recommendation.get('high_priority_conditions'):
+                st.warning(f"⚠️ **High Priority Conditions:** {', '.join(recommendation['high_priority_conditions'])}")
+            
+            if recommendation.get('emergency_referral_needed'):
+                st.error(f"🚨 **Emergency Referral Needed:** {', '.join(recommendation.get('emergency_reasons', []))}")
+            
+        except Exception as e:
+            st.error(f"Error getting recommendation: {e}")
+    
+    # Create custom protocol section
+    st.subheader("🛠️ Create Custom Protocol")
+    st.info("📝 Advanced users can create custom treatment protocols by uploading JSON files")
+    
+    uploaded_file = st.file_uploader(
+        "Upload Custom Protocol (JSON)",
+        type=['json'],
+        help="Upload a JSON file with custom treatment protocol configuration"
+    )
+    
+    if uploaded_file is not None:
+        try:
+            import json
+            protocol_data = json.load(uploaded_file)
+            
+            # Show preview
+            st.write("**Protocol Preview:**")
+            st.json(protocol_data)
+            
+            # Get protocol name
+            protocol_name = st.text_input(
+                "Protocol Name:",
+                value=uploaded_file.name.replace('.json', ''),
+                help="Enter a name for this custom protocol"
+            )
+            
+            if st.button("💾 Save Custom Protocol"):
+                if protocol_name:
+                    if protocol_manager.create_custom_protocol(protocol_name, protocol_data):
+                        st.success(f"✅ Custom protocol '{protocol_name}' created successfully!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to create custom protocol. Check the JSON structure.")
+                else:
+                    st.error("Please enter a protocol name.")
+                    
+        except Exception as e:
+            st.error(f"Error processing uploaded file: {e}")
+
+# ...existing code...
