@@ -1,0 +1,15 @@
+# Database requirements for malnutrition assessment system
+sqlite3  # Built-in Python module (no need to install)
+psycopg2-binary>=2.9.5  # PostgreSQL adapter
+mysql-connector-python>=8.0.33  # MySQL connector
+bcrypt>=4.0.1  # Password hashing
+python-dotenv>=1.0.0  # Environment variables
+
+# Core requirements (already installed)
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+plotly>=5.15.0
+seaborn>=0.12.0
+matplotlib>=3.7.0
